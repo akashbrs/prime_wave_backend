@@ -131,10 +131,11 @@ STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 CORS_ALLOWED_ORIGINS = [
-    CORS_ALLOW_ALL_ORIGINS = True
     "http://localhost:5173",
     "https://primewave-organisation.vercel.app"
 ]
+# CORS Settings
+CORS_ALLOW_ALL_ORIGINS = True
 
 # Email Configuration (Google SMTP)
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
