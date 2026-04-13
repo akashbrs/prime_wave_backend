@@ -56,7 +56,16 @@ def contact_view(request):
 
         except Exception as e:
             print(f"Error in contact_view: {str(e)}")
-            return JsonResponse({'error': f'Failed to send email: {str(e)}'}, status=500)
+            return JsonResponse({
+                'error': f'Failed to send email: {str(e)}',
+                'debug_info': {
+                    'host': settings.EMAIL_HOST,
+                    'port': settings.EMAIL_PORT,
+                    'use_tls': settings.EMAIL_USE_TLS,
+                    'use_ssl': settings.EMAIL_USE_SSL,
+                    'user': settings.EMAIL_HOST_USER[:5] + '...' if settings.EMAIL_HOST_USER else None
+                }
+            }, status=500)
     
     return JsonResponse({'error': 'Invalid request method.'}, status=405)
 
