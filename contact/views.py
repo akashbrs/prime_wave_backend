@@ -59,3 +59,12 @@ def contact_view(request):
             return JsonResponse({'error': f'Failed to send email: {str(e)}'}, status=500)
     
     return JsonResponse({'error': 'Invalid request method.'}, status=405)
+
+def debug_view(request):
+    return JsonResponse({
+        'status': 'ok',
+        'version': '2.0-fixed-email',
+        'debug': settings.DEBUG,
+        'email_host': settings.EMAIL_HOST,
+        'email_port': settings.EMAIL_PORT,
+    })
