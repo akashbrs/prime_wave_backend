@@ -12,9 +12,14 @@ logger = logging.getLogger(__name__)
 @csrf_exempt
 def contact_view(request):
     """
-    Handles contact form submissions.
-    Validates JSON, saves to DB, and sends a confirmation email.
+    Handles contact form submissions (POST) and status checks (GET).
     """
+    if request.method == 'GET':
+        return JsonResponse({
+            'status': 'active',
+            'message': 'This endpoint is ready to receive POST requests for contact submissions.'
+        }, status=200)
+
     if request.method != 'POST':
         return JsonResponse({'error': 'Method not allowed. Use POST.'}, status=405)
 
