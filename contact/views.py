@@ -1,108 +1,57 @@
 import json
-import logging
+from django.core.mail import send_mail
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_POST
-from django.core.mail import send_mail
 from django.conf import settings
 from .models import ContactSubmission
 
-# Configure logging
-logger = logging.getLogger(__name__)
-
 @csrf_exempt
-@require_POST
 def contact_view(request):
-    """
-    Handles contact form submissions.
-    Validates JSON, saves to DB, and sends a confirmation email.
-    """
-    try:
-        # 1. Parse and Validate JSON
+    if request.method == "POST":
         try:
-            data = json.loads(request.body)
-        except json.JSONDecodeError:
-            logger.warning("Invalid JSON received")
-            return JsonResponse({'error': 'Invalid JSON format.'}, status=400)
+            # Handle both JSON (React) and Form Data (Curl/Standard)
+            if request.content_type == 'application/json':
+                data = json.loads(request.body)
+                name = data.get("name") or data.get("full_name")
+                email = data.get("email")
+                message = data.get("message")
+            else:
+                name = request.POST.get("name") or request.POST.get("full_name")
+                email = request.POST.get("email")
+                message = request.POST.get("message")
 
-        # Support both 'name' (requested) and 'full_name' (backward compatibility)
-        name = data.get('name') or data.get('full_name')
-        email = data.get('email')
-        message = data.get('message')
+            # Save to Database first (to ensure we don't lose the data)
+            try:
+                ContactSubmission.objects.create(name=name, email=email, message=message)
+            except Exception as db_e:
+                print("DATABASE ERROR:", db_e)
 
-        logger.info(f"Received contact submission from: {email}")
-
-        if not name or not email or not message:
-            return JsonResponse({'error': 'Fields name, email, and message are all required.'}, status=400)
-
-        # 2. Save to Database
-        try:
-            submission = ContactSubmission.objects.create(
-                name=name,
-                email=email,
-                message=message
-            )
-            logger.info(f"Saved submission to DB with ID: {submission.id}")
-        except Exception as db_err:
-            logger.error(f"Database error: {str(db_err)}")
-            # We continue even if DB fails, as email is the primary action, 
-            # but you might want to return 500 here depending on requirements.
-            pass
-
-        # 3. Send automated confirmation email
-        subject = 'Thank you for getting in touch with PrimeWave'
-        body = f'Hi {name},\n\nThank you for reaching out. We have received your inquiry and will get back to you shortly.\n\nYour message:\n"{message}"\n\nBest regards,\nPrimeWave Team'
-        
-        html_content = f"""
-        <div style="font-family: sans-serif; color: #444; max-width: 600px; margin: 0 auto; line-height: 1.6;">
-            <h2 style="color: #4fc3f7; margin-bottom: 24px;">Hello {name},</h2>
-            <p>Thank you for getting in touch with <strong>PrimeWave Lifestyle & Electronics</strong>.</p>
-            <p>This is an automated confirmation that we've successfully received your inquiry. Our team will contact you within 48hrs.</p>
-            <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
-            <p><strong>Here is a summary of your message:</strong></p>
-            <div style="background: #f8f9fa; border-left: 4px solid #4fc3f7; padding: 20px; font-style: italic; color: #555; margin: 20px 0;">
-               "{message}"
-            </div>
-            <p style="margin-top: 40px;">Best Regards,</p>
-            <p style="margin-bottom: 0;"><strong>PrimeWave Team</strong></p>
-        </div>
-        """
-        
-        # 3. Send automated confirmation email
-        try:
-            send_mail(
-                subject,
-                body,
-                settings.DEFAULT_FROM_EMAIL,
-                [email],
-                fail_silently=False,
-                html_message=html_content,
-            )
-            logger.info(f"Confirmation email sent to {email}")
+            # Try sending email
+            try:
+                # Use your specific send_mail structure
+                send_mail(
+                    "New Contact Submission",
+                    f"Name: {name}\nEmail: {email}\n\nMessage:\n{message}",
+                    settings.DEFAULT_FROM_EMAIL,
+                    [settings.DEFAULT_FROM_EMAIL], # Sending to yourself
+                    fail_silently=False,
+                )
+            except Exception as e:
+                print("EMAIL ERROR:", e)   # 👈 this prevents crash
 
             return JsonResponse({
                 "status": "success",
-                "message": "Contact submitted successfully"
-            }, status=200)
+                "message": "Message received successfully"
+            })
 
         except Exception as e:
-            print("EMAIL ERROR:", e)
-            logger.error(f"Email sending failed: {str(e)}")
-            
-            # Return success even if email failed as per requested logic
+            print("API ERROR:", e)
             return JsonResponse({
-                "status": "success",
-                "message": "Saved but email failed"
-            }, status=200)
-
-    except Exception as e:
-        logger.critical(f"Unexpected server error: {str(e)}", exc_info=True)
-        return JsonResponse({'error': 'An unexpected server error occurred.'}, status=500)
+                "status": "error",
+                "message": "Something went wrong"
+            }, status=500)
+    
+    return JsonResponse({"error": "Method not allowed"}, status=405)
 
 def debug_view(request):
-    """Simple health check endpoint."""
-    return JsonResponse({
-        'status': 'ok',
-        'version': '3.0-robust',
-        'database_connected': True, # Simple assumption for health check
-    })
+    return JsonResponse({"status": "ok", "version": "4.0-user-custom"})
