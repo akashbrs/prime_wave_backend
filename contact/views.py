@@ -68,6 +68,7 @@ def contact_view(request):
         </div>
         """
         
+        # 3. Send automated confirmation email
         try:
             send_mail(
                 subject,
@@ -78,15 +79,21 @@ def contact_view(request):
                 html_message=html_content,
             )
             logger.info(f"Confirmation email sent to {email}")
-        except Exception as mail_err:
-            logger.error(f"Email sending failed: {str(mail_err)}")
-            # If email fails, we return 500 as per user requirement for "server failure"
-            return JsonResponse({
-                'error': 'Server failed to send confirmation email.',
-                'details': str(mail_err) if settings.DEBUG else 'Check server logs.'
-            }, status=500)
 
-        return JsonResponse({'message': 'Contact submitted successfully'}, status=200)
+            return JsonResponse({
+                "status": "success",
+                "message": "Contact submitted successfully"
+            }, status=200)
+
+        except Exception as e:
+            print("EMAIL ERROR:", e)
+            logger.error(f"Email sending failed: {str(e)}")
+            
+            # Return success even if email failed as per requested logic
+            return JsonResponse({
+                "status": "success",
+                "message": "Saved but email failed"
+            }, status=200)
 
     except Exception as e:
         logger.critical(f"Unexpected server error: {str(e)}", exc_info=True)
