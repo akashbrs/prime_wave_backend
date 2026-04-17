@@ -2,6 +2,7 @@ import json
 import logging
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
 from django.core.mail import send_mail
 from django.conf import settings
 from .models import ContactSubmission
@@ -10,19 +11,12 @@ from .models import ContactSubmission
 logger = logging.getLogger(__name__)
 
 @csrf_exempt
+@require_POST
 def contact_view(request):
     """
-    Handles contact form submissions (POST) and status checks (GET).
+    Handles contact form submissions.
+    Validates JSON, saves to DB, and sends a confirmation email.
     """
-    if request.method == 'GET':
-        return JsonResponse({
-            'status': 'active',
-            'message': 'This endpoint is ready to receive POST requests for contact submissions.'
-        }, status=200)
-
-    if request.method != 'POST':
-        return JsonResponse({'error': 'Method not allowed. Use POST.'}, status=405)
-
     try:
         # 1. Parse and Validate JSON
         try:
